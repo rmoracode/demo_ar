@@ -3,70 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <title>AJE Puntos - WebAR Fix</title>
+    <title>AJE Puntos - Debug Mode</title>
     
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     
     <style>
-        /* Forzar que el HTML y el Body no bloqueen la cámara */
         html, body {
             margin: 0px;
             overflow: hidden;
             width: 100%;
             height: 100%;
+            background-color: #000;
         }
 
-        #login-ui {
+        #debug-panel {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            z-index: 9999; /* Asegurar que esté por encima de la cámara */
+            z-index: 9999;
             background: white;
             padding: 25px;
             border-radius: 15px;
             font-family: Arial, sans-serif;
-            box-shadow: 0px 10px 25px rgba(0,0,0,0.5);
+            box-shadow: 0px 10px 25px rgba(0,0,0,0.6);
             text-align: center;
-            width: 80%;
-            max-width: 280px;
+            width: 85%;
+            max-width: 300px;
         }
-        #login-ui input {
+
+        .btn-aje {
+            background-color: #E30613;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 15px;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn-cache {
+            background-color: #555;
+            font-size: 12px;
+            padding: 6px;
+        }
+
+        input {
             width: 90%;
             padding: 10px;
-            margin: 15px 0;
+            margin-top: 10px;
             border: 1px solid #ccc;
             border-radius: 5px;
             text-align: center;
             font-size: 16px;
         }
-        #login-ui button {
-            background-color: #E30613;
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 16px;
-            width: 100%;
+
+        /* Ocultar la escena de AR al inicio para que no interfiera con los permisos */
+        a-scene {
+            display: none;
         }
     </style>
 </head>
 <body>
 
-    <div id="login-ui">
-        <h3 style="margin: 0; color: #333;">Puntos AJE</h3>
-        <p style="font-size: 12px; color: #666; margin: 5px 0;">Ingresa para activar la cámara</p>
-        <input type="number" id="dpi-input" placeholder="Código de prueba: 12345">
-        <button onclick="activarExperiencia()">Iniciar Escáner</button>
+    <div id="debug-panel">
+        <h3 style="margin: 0 0 5px 0; color: #333;">Consola de Activación AJE</h3>
+        <p id="status-text" style="font-size: 13px; color: #666; margin: 5px 0 15px 0;">Paso 1: Se requieren permisos de hardware.</p>
+        
+        <button id="btn-camara" class="btn-aje" onclick="solicitarPermisosCamara()">1. Activar Permisos de Cámara</button>
+        
+        <div id="form-cliente" style="display: none;">
+            <input type="number" id="dpi-input" placeholder="Ingresa código (12345)">
+            <button class="btn-aje" style="background-color: #00B159;" onclick="inicializarAR()">2. Iniciar Escáner WebAR</button>
+        </div>
+
+        <hr style="margin: 20px 0 10px 0; border: 0; border-top: 1px solid #eee;">
+        
+        <button class="btn-aje btn-cache" onclick="limpiarCacheYRecargar()">Ajustes: Forzar Limpieza de Caché</button>
     </div>
 
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;" vr-mode-ui="enabled: false">
+    <a-scene id="escena-ar" embedded arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;" vr-mode-ui="enabled: false">
         
-        <a-marker preset="hiro" id="marcador">
-            <a-entity id="ar-content" position="0 0 0" visible="false">
+        <a-marker preset="hiro">
+            <a-entity id="ar-content">
                 <a-plane position="0 0.5 0" rotation="-90 0 0" width="2" height="1.2" color="#111" material="opacity: 0.9"></a-plane>
                 <a-text id="txt-saludo" value="" position="-0.8 0.9 0.1" rotation="-90 0 0" color="#FFF" width="3.5"></a-text>
                 <a-text id="txt-puntos" value="" position="-0.8 0.5 0.1" rotation="-90 0 0" color="#FFD700" width="5"></a-text>
@@ -82,31 +105,60 @@
             "12345": { nombre: "Juan Pérez", puntos: "150 PTS", premio: "1 Pack de Volt" }
         };
 
-        function activarExperiencia() {
+        // 1. SOLICITAR CÁMARA MEDIANTE MENÚ NATIVO
+        function solicitarPermisosCamara() {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                .then(function(stream) {
+                    // Permiso concedido: Apagamos el stream temporal para cedérselo a AR.js
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                    document.getElementById('status-text').innerText = "¡Cámara autorizada! Procede al Paso 2.";
+                    document.getElementById('status-text').style.color = "#00B159";
+                    document.getElementById('btn-camara').style.display = "none";
+                    document.getElementById('form-cliente').style.display = "block";
+                })
+                .catch(function(err) {
+                    alert("Error o denegación de cámara: " + err.name + "\nPor favor, ve a la configuración de tu navegador y permite el uso de la cámara para este sitio web.");
+                });
+            } else {
+                alert("Tu navegador o conexión (no https) no soporta el acceso a la cámara.");
+            }
+        }
+
+        // 2. INICIALIZAR EL MOTOR TRIDIMENSIONAL
+        function inicializarAR() {
             const idInput = document.getElementById('dpi-input').value;
             
             if (dbClientes[idInput]) {
                 const cliente = dbClientes[idInput];
                 
-                // Asignar los valores a los textos 3D
+                // Cargar Textos
                 document.getElementById('txt-saludo').setAttribute('value', `¡Hola, ${cliente.nombre}!`);
                 document.getElementById('txt-puntos').setAttribute('value', `Puntos: ${cliente.puntos}`);
                 document.getElementById('txt-canje').setAttribute('value', `Canje: ${cliente.premio}`);
                 
-                // Hacer visible el componente de AR
-                document.getElementById('ar-content').setAttribute('visible', 'true');
+                // Mostrar la escena AR en el DOM y ocultar el panel
+                document.getElementById('escena-ar').style.display = "block";
+                document.getElementById('debug-panel').style.display = "none";
                 
-                // Ocultar la UI de login
-                document.getElementById('login-ui').style.display = 'none';
-                
-                // TRUCO EXPERTO: Forzar al navegador a recalcular el tamaño de la cámara de AR.js
+                // Forzar redimensión técnica del visor de AR.js
                 setTimeout(() => {
                     window.dispatchEvent(new Event('resize'));
-                }, 500);
-
+                }, 400);
             } else {
-                alert("Por favor usa el código de prueba: 12345");
+                alert("DPI inválido. Usa el código: 12345");
             }
+        }
+
+        // 3. FUNCIÓN PARA ROMPER LA CACHÉ
+        function limpiarCacheYRecargar() {
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // Truco para romper caché de URL añadiendo un parámetro aleatorio de tiempo
+            let urlActual = window.location.href.split('?')[0];
+            window.location.href = urlActual + '?nocache=' + new Date().getTime();
         }
     </script>
 </body>
