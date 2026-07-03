@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AJE Puntos - WebAR Demo</title>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <style>
+        /* Interfaz de usuario para ingresar el DPI/Código de Cliente */
+        #login-ui {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 15px;
+            font-family: Arial, sans-serif;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
+            text-align: center;
+            width: 80%;
+            max-width: 300px;
+        }
+        #login-ui input {
+            width: 90%;
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            text-align: center;
+        }
+        #login-ui button {
+            background-color: #E30613; /* Rojo AJE aproximado */
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body style="margin: 0; overflow: hidden;">
+
+    <div id="login-ui">
+        <h4 style="margin: 0 0 10px 0; color: #333;">Consulta tus Puntos AJE</h4>
+        <input type="number" id="dpi-input" placeholder="Ingresa tu DPI o Código">
+        <button onclick="consultarPuntos()">Ver Puntos</button>
+    </div>
+
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+        
+        <a-marker preset="hiro">
+            
+            <a-entity id="ar-content" position="0 0 0" scale="1 1 1" visible="false">
+                
+                <a-plane position="0 0.5 0" rotation="-90 0 0" width="2" height="1.5" color="#111111" material="opacity: 0.85; transparent: true;"></a-plane>
+                
+                <a-text id="txt-saludo" value="Hola Cliente!" position="-0.9 1.1 0" rotation="-90 0 0" color="#FFFFFF" width="4" font="mozillavr"></a-text>
+                
+                <a-circle position="-0.5 0.4 0.1" rotation="-90 0 0" radius="0.3" color="#FFD700">
+                    <a-text id="txt-puntos" value="0" position="-0.15 0 0.01" rotation="0 0 0" color="#000" width="5" font="mozillavr" align="center"></a-text>
+                </a-circle>
+                
+                <a-text value="PUNTOS ACUMULADOS" position="0.1 0.5 0.1" rotation="-90 0 0" color="#FFD700" width="3" font="mozillavr"></a-text>
+                <a-text id="txt-canje" value="Canjeable por:\nCargando..." position="0.1 0.2 0.1" rotation="-90 0 0" color="#FFFFFF" width="2.5" font="mozillavr"></a-text>
+                
+            </a-entity>
+
+        </a-marker>
+
+        <a-entity camera></a-entity>
+    </a-scene>
+
+    <script>
+        // Simulación de base de datos de clientes
+        const dbClientes = {
+            "12345": { nombre: "Juan Pérez", puntos: 150, premio: "1 Pack de Volt" },
+            "67890": { nombre: "María López", puntos: 420, premio: "1 Caja de Big Cola" },
+            "2026": { nombre: "Distribuidora VIP", puntos: 2500, premio: "Descuento del 15% en tu próxima orden" }
+        };
+
+        function consultarPuntos() {
+            const idInput = document.getElementById('dpi-input').value;
+            const arContent = document.getElementById('ar-content');
+            
+            if (dbClientes[idInput]) {
+                const cliente = dbClientes[idInput];
+                
+                // Inyectar datos dinámicos en los elementos 3D de la Realidad Aumentada
+                document.getElementById('txt-saludo').setAttribute('value', `¡Hola, ${cliente.nombre}!`);
+                document.getElementById('txt-puntos').setAttribute('value', cliente.puntos);
+                document.getElementById('txt-canje').setAttribute('value', `Canjealo por:\n${cliente.premio}`);
+                
+                // Hacer visible el contenido 3D
+                arContent.setAttribute('visible', 'true');
+                
+                // Ocultar el formulario para que aprecien la AR
+                document.getElementById('login-ui').style.display = 'none';
+                
+                alert("¡Datos cargados! Ahora apunta tu cámara al marcador HIRO en tu pantalla.");
+            } else {
+                alert("Código o DPI no registrado para la demo. Prueba con: 12345, 67890 o 2026");
+            }
+        }
+    </script>
+</body>
+</html>
